@@ -77,100 +77,100 @@ static void *coreboot_addr;
 
 void reloc_patcher(u32 payload_dst, u32 payload_src, u32 payload_size)
 {
-	memcpy((u8 *)payload_src, (u8 *)IPL_LOAD_ADDR, PATCHED_RELOC_SZ);
+    memcpy((u8 *)payload_src, (u8 *)IPL_LOAD_ADDR, PATCHED_RELOC_SZ);
 
-	volatile reloc_meta_t *relocator = (reloc_meta_t *)(payload_src + RELOC_META_OFF);
+    volatile reloc_meta_t *relocator = (reloc_meta_t *)(payload_src + RELOC_META_OFF);
 
-	relocator->start = payload_dst - ALIGN(PATCHED_RELOC_SZ, 0x10);
-	relocator->stack = PATCHED_RELOC_STACK;
-	relocator->end   = payload_dst + payload_size;
-	relocator->ep    = payload_dst;
+    relocator->start = payload_dst - ALIGN(PATCHED_RELOC_SZ, 0x10);
+    relocator->stack = PATCHED_RELOC_STACK;
+    relocator->end   = payload_dst + payload_size;
+    relocator->ep    = payload_dst;
 
-	if (payload_size == 0x7000)
-	{
-		memcpy((u8 *)(payload_src + ALIGN(PATCHED_RELOC_SZ, 0x10)), coreboot_addr, 0x7000); //Bootblock
-		*(vu32 *)CBFS_DRAM_EN_ADDR = CBFS_DRAM_MAGIC;
-	}
+    if (payload_size == 0x7000)
+    {
+        memcpy((u8 *)(payload_src + ALIGN(PATCHED_RELOC_SZ, 0x10)), coreboot_addr, 0x7000); //Bootblock
+        *(vu32 *)CBFS_DRAM_EN_ADDR = CBFS_DRAM_MAGIC;
+    }
 }
 
 int launch_payload(char *path)
 {
-	gfx_clear_grey(0x1B);
-	gfx_con_setpos(0, 0);
-	if (!path)
-		return 1;
+    gfx_clear_grey(0x1B);
+    gfx_con_setpos(0, 0);
+    if (!path)
+        return 1;
 
-	if (sd_mount())
-	{
-		FIL fp;
-		if (f_open(&fp, path, FA_READ))
-		{
-			EPRINTFARGS("Payload file is missing!\n(%s)", path);
-			sd_unmount();
+    if (sd_mount())
+    {
+        FIL fp;
+        if (f_open(&fp, path, FA_READ))
+        {
+            EPRINTFARGS("Payload file is missing!\n(%s)", path);
+            sd_unmount();
 
-			return 1;
-		}
+            return 1;
+        }
 
-		// Read and copy the payload to our chosen address
-		void *buf;
-		u32 size = f_size(&fp);
+        // Read and copy the payload to our chosen address
+        void *buf;
+        u32 size = f_size(&fp);
 
-		if (size < 0x30000)
-			buf = (void *)RCM_PAYLOAD_ADDR;
-		else
-		{
-			coreboot_addr = (void *)(COREBOOT_END_ADDR - size);
-			buf = coreboot_addr;
-		}
+        if (size < 0x30000)
+            buf = (void *)RCM_PAYLOAD_ADDR;
+        else
+        {
+            coreboot_addr = (void *)(COREBOOT_END_ADDR - size);
+            buf = coreboot_addr;
+        }
 
-		if (f_read(&fp, buf, size, NULL))
-		{
-			f_close(&fp);
-			sd_unmount();
+        if (f_read(&fp, buf, size, NULL))
+        {
+            f_close(&fp);
+            sd_unmount();
 
-			return 1;
-		}
+            return 1;
+        }
 
-		f_close(&fp);
+        f_close(&fp);
 
-		sd_unmount();
+        sd_unmount();
 
-		if (size < 0x30000)
-		{
-			reloc_patcher(PATCHED_RELOC_ENTRY, EXT_PAYLOAD_ADDR, ALIGN(size, 0x10));
+        if (size < 0x30000)
+        {
+            reloc_patcher(PATCHED_RELOC_ENTRY, EXT_PAYLOAD_ADDR, ALIGN(size, 0x10));
 
-			hw_reinit_workaround(false, byte_swap_32(*(u32 *)(buf + size - sizeof(u32))));
-		}
-		else
-		{
-			reloc_patcher(PATCHED_RELOC_ENTRY, EXT_PAYLOAD_ADDR, 0x7000);
-			hw_reinit_workaround(true, 0);
-		}
+            hw_reinit_workaround(false, byte_swap_32(*(u32 *)(buf + size - sizeof(u32))));
+        }
+        else
+        {
+            reloc_patcher(PATCHED_RELOC_ENTRY, EXT_PAYLOAD_ADDR, 0x7000);
+            hw_reinit_workaround(true, 0);
+        }
 
-		// Some cards (Sandisk U1), do not like a fast power cycle. Wait min 100ms.
-		sdmmc_storage_init_wait_sd();
+        // Some cards (Sandisk U1), do not like a fast power cycle. Wait min 100ms.
+        sdmmc_storage_init_wait_sd();
 
-		void (*ext_payload_ptr)() = (void *)EXT_PAYLOAD_ADDR;
+        void (*ext_payload_ptr)() = (void *)EXT_PAYLOAD_ADDR;
 
-		// Launch our payload.
-		(*ext_payload_ptr)();
-	}
+        // Launch our payload.
+        (*ext_payload_ptr)();
+    }
 
-	return 1;
+    return 1;
 }
 
 FRESULT rename_file(const char* old, const char* new)
 {
-	FRESULT res = FR_OK;
-	if (f_stat(old, NULL) == FR_OK) {
-		if (f_stat(new, NULL) == FR_OK) {
-			res = f_unlink(new);
-		}
-		if (res == FR_OK) {
-			res = f_rename(old, new);
-		}
-	}
-	return res;
+    FRESULT res = FR_OK;
+    if (f_stat(old, NULL) == FR_OK) {
+        if (f_stat(new, NULL) == FR_OK) {
+            res = f_unlink(new);
+        }
+        if (res == FR_OK) {
+            res = f_rename(old, new);
+        }
+    }
+    return res;
 }
 
 extern void pivot_stack(u32 stack_top);
@@ -186,171 +186,173 @@ extern void pivot_stack(u32 stack_top);
 
 static inline void _show_errors()
 {
-	u32 *excp_enabled = (u32 *)EXCP_EN_ADDR;
-	u32 *excp_type = (u32 *)EXCP_TYPE_ADDR;
-	u32 *excp_lr = (u32 *)EXCP_LR_ADDR;
+    u32 *excp_enabled = (u32 *)EXCP_EN_ADDR;
+    u32 *excp_type = (u32 *)EXCP_TYPE_ADDR;
+    u32 *excp_lr = (u32 *)EXCP_LR_ADDR;
 
-	if (*excp_enabled == EXCP_MAGIC)
-		h_cfg.errors |= ERR_EXCEPTION;
+    if (*excp_enabled == EXCP_MAGIC)
+        h_cfg.errors |= ERR_EXCEPTION;
 
-	if (h_cfg.errors)
-	{
-		
+    if (h_cfg.errors)
+    {
+        
 
-		/*
-		if (h_cfg.errors & ERR_SD_BOOT_EN)
-			WPRINTF("Failed to mount SD!\n");
+        /*
+        if (h_cfg.errors & ERR_SD_BOOT_EN)
+            WPRINTF("Failed to mount SD!\n");
 
-		if (h_cfg.errors & ERR_LIBSYS_LP0)
-			WPRINTF("Missing LP0 (sleep mode) lib!\n");
-		if (h_cfg.errors & ERR_LIBSYS_MTC)
-			WPRINTF("Missing or old Minerva lib!\n");
+        if (h_cfg.errors & ERR_LIBSYS_LP0)
+            WPRINTF("Missing LP0 (sleep mode) lib!\n");
+        if (h_cfg.errors & ERR_LIBSYS_MTC)
+            WPRINTF("Missing or old Minerva lib!\n");
 
-		if (h_cfg.errors & (ERR_LIBSYS_LP0 | ERR_LIBSYS_MTC))
-			WPRINTF("\nUpdate bootloader folder!\n\n");
-		*/
+        if (h_cfg.errors & (ERR_LIBSYS_LP0 | ERR_LIBSYS_MTC))
+            WPRINTF("\nUpdate bootloader folder!\n\n");
+        */
 
-		if (h_cfg.errors & ERR_EXCEPTION)
-		{
-			gfx_clearscreen();
-			WPRINTFARGS("LR %08X", *excp_lr);
-			u32 exception = 0;
+        if (h_cfg.errors & ERR_EXCEPTION)
+        {
+            gfx_clearscreen();
+            WPRINTFARGS("LR %08X", *excp_lr);
+            u32 exception = 0;
 
-			switch (*excp_type)
-			{
-			case EXCP_TYPE_RESET:
-				exception = TE_EXCEPTION_RESET;
-				break;
-			case EXCP_TYPE_UNDEF:
-				exception = TE_EXCEPTION_UNDEFINED;
-				break;
-			case EXCP_TYPE_PABRT:
-				exception = TE_EXCEPTION_PREF_ABORT;
-				break;
-			case EXCP_TYPE_DABRT:
-				exception = TE_EXCEPTION_DATA_ABORT;
-				break;
-			}
+            switch (*excp_type)
+            {
+            case EXCP_TYPE_RESET:
+                exception = TE_EXCEPTION_RESET;
+                break;
+            case EXCP_TYPE_UNDEF:
+                exception = TE_EXCEPTION_UNDEFINED;
+                break;
+            case EXCP_TYPE_PABRT:
+                exception = TE_EXCEPTION_PREF_ABORT;
+                break;
+            case EXCP_TYPE_DABRT:
+                exception = TE_EXCEPTION_DATA_ABORT;
+                break;
+            }
 
-			// Clear the exception.
-			*excp_enabled = 0;
-			DrawError(newErrCode(exception));
-		}
-	}
+            // Clear the exception.
+            *excp_enabled = 0;
+            DrawError(newErrCode(exception));
+        }
+    }
 }
 
 void ipl_main()
 {
-	// Do initial HW configuration. This is compatible with consecutive reruns without a reset.
-	hw_init();
+    // Do initial HW configuration. This is compatible with consecutive reruns without a reset.
+    hw_init();
 
-	// Pivot the stack so we have enough space.
-	pivot_stack(IPL_STACK_TOP);
+    // Pivot the stack so we have enough space.
+    pivot_stack(IPL_STACK_TOP);
 
-	// Tegra/Horizon configuration goes to 0x80000000+, package2 goes to 0xA9800000, we place our heap in between.
-	heap_init(IPL_HEAP_START);
+    // Tegra/Horizon configuration goes to 0x80000000+, package2 goes to 0xA9800000, we place our heap in between.
+    heap_init(IPL_HEAP_START);
 
 #ifdef DEBUG_UART_PORT
-	uart_send(DEBUG_UART_PORT, (u8 *)"hekate: Hello!\r\n", 16);
-	uart_wait_idle(DEBUG_UART_PORT, UART_TX_IDLE);
+    uart_send(DEBUG_UART_PORT, (u8 *)"hekate: Hello!\r\n", 16);
+    uart_wait_idle(DEBUG_UART_PORT, UART_TX_IDLE);
 #endif
 
-	// Set bootloader's default configuration.
-	set_default_configuration();
+    // Set bootloader's default configuration.
+    set_default_configuration();
 
-	// Mount SD Card.
-	h_cfg.errors |= !sd_mount() ? ERR_SD_BOOT_EN : 0;
+    // Mount SD Card.
+    h_cfg.errors |= !sd_mount() ? ERR_SD_BOOT_EN : 0;
 
-	TConf.minervaEnabled = !minerva_init();
-	TConf.FSBuffSize = (TConf.minervaEnabled) ? 0x800000 : 0x10000;
+    TConf.minervaEnabled = !minerva_init();
+    TConf.FSBuffSize = (TConf.minervaEnabled) ? 0x800000 : 0x10000;
 
-	if (!TConf.minervaEnabled) //!TODO: Add Tegra210B01 support to minerva.
-		h_cfg.errors |= ERR_LIBSYS_MTC;
+    if (!TConf.minervaEnabled) //!TODO: Add Tegra210B01 support to minerva.
+        h_cfg.errors |= ERR_LIBSYS_MTC;
 
-	display_init();
+    display_init();
 
-	u32 *fb = display_init_framebuffer_pitch();
-	gfx_init_ctxt(fb, 720, 1280, 720);
+    u32 *fb = display_init_framebuffer_pitch();
+    gfx_init_ctxt(fb, 720, 1280, 720);
 
-	gfx_con_init();
+    gfx_con_init();
 
-	display_backlight_pwm_init();
-	display_backlight_brightness(100, 1000);
+    display_backlight_pwm_init();
+    display_backlight_brightness(100, 1000);
 
-	// Overclock BPMP.
-	bpmp_clk_rate_set(BPMP_CLK_DEFAULT_BOOST);
-	minerva_change_freq(FREQ_800);
+    // Overclock BPMP.
+    bpmp_clk_rate_set(BPMP_CLK_DEFAULT_BOOST);
+    minerva_change_freq(FREQ_800);
 
-	emummc_load_cfg();
-	// Ignore whether emummc is enabled.
-	h_cfg.emummc_force_disable = emu_cfg.sector == 0 && !emu_cfg.path;
-	emu_cfg.enabled = !h_cfg.emummc_force_disable;
-	h_cfg.emummc_force_disable = 1;
+    emummc_load_cfg();
+    // Ignore whether emummc is enabled.
+    h_cfg.emummc_force_disable = emu_cfg.sector == 0 && !emu_cfg.path;
+    emu_cfg.enabled = !h_cfg.emummc_force_disable;
+    h_cfg.emummc_force_disable = 1;
 
-	TConf.pkg1ID = "Unk";
+    TConf.pkg1ID = "Unk";
 
-	hidInit();
-	_show_errors();
-	gfx_clear_grey(0x00);
-	//gfx_clearscreen();
+    hidInit();
+    _show_errors();
+    gfx_clear_grey(0x00);
+    //gfx_clearscreen();
 
-	gfx_printf("\n\n\n\n\n\n\n\n");
-	
-	// Set color to red for "SWiTCH"
-	gfx_con.fgcol = 0xFFFF4444;
-	gfx_printf("        ███████╗██╗    ██╗██╗████████╗ ██████╗██╗  ██╗\n"
-	           "        ██╔════╝██║    ██║██║╚══██╔══╝██╔════╝██║  ██║\n"
-	           "        ███████╗██║ █╗ ██║██║   ██║   ██║     ███████║\n"
-	           "        ╚════██║██║███╗██║██║   ██║   ██║     ██╔══██║\n"
-	           "        ███████║╚███╔███╔╝██║   ██║   ╚██████╗██║  ██║\n"
-	           "        ╚══════╝ ╚══╝╚══╝ ╚═╝   ╚═╝    ╚═════╝╚═╝  ╚═╝\n");
-	
-	// Set color to white for "WAY"
-	gfx_con.fgcol = 0xFFFFFFFF;
-	gfx_printf("                   ██╗    ██╗ █████╗ ██╗   ██╗\n"
-	           "                   ██║    ██║██╔══██╗╚██╗ ██╔╝\n"
-	           "                   ██║ █╗ ██║███████║ ╚████╔╝ \n"
-	           "                   ██║███╗██║██╔══██║  ╚██╔╝  \n"
-	           "                   ╚███╔███╔╝██║  ██║   ██║   \n"
-	           "                    ╚══╝╚══╝ ╚═╝  ╚═╝   ╚═╝   \n");
-	
-	gfx_printf("\n\n");
-	
-	// Set color to red for the text
-	gfx_con.fgcol = 0xFFFF4444;
-	gfx_printf("                                Time to update SWiTCHWAY again?");
+    gfx_printf("\n\n\n\n\n\n\n\n");
+    
+    // Set color to red for "SWiTCH"
+    gfx_con.fgcol = 0xFFFF4444;
+    gfx_printf(
+        "     _______          ___ _______ _____ _    _\n"
+        "    / ____\\ \\        / (_)__   __/ ____| |  | |\n"
+        "   | (___  \\ \\  /\\  / / _   | | | |    | |__| |\n"
+        "    \\___ \\  \\ \\/  \\/ / | |  | | | |    |  __  |\n"
+        "    ____) |  \\  /\\  /  | |  | | | |____| |  | |\n"
+        "   |_____/    \\/  \\/   |_|  |_|  \\_____|_|  |_|\n");
 
-	usleep(2000000); // Display the text for 2s
+    // Set color to white for "WAY"
+    gfx_con.fgcol = 0xFFFFFFFF;
+    gfx_printf(
+        "                 __          __ __     __\n"
+        "                 \\ \\        / /\\\\ \\   / /\n"
+        "                  \\ \\  /\\  / /  \\\\ \\_/ /\n"
+        "                   \\ \\/  \\/ / /\\ \\\\   /\\\n"
+        "                    \\  /\\  / ____ \\| |\n"
+        "                     \\/  \\/_/    \\_\\_|\n");
 
-	if (!h_cfg.errors) {
-		// Delete the ini file if it exists
-		if (f_stat("bootloader/ini/ultrahand_updater.bin.ini", NULL) == FR_OK) {
-			f_unlink("bootloader/ini/ultrahand_updater.bin.ini");
-		}
-		//rename_file("atmosphere/fusee-secondary.bin.ultra", "atmosphere/fusee-secondary.bin");
-		rename_file("atmosphere/stratosphere.romfs.ultra", "atmosphere/stratosphere.romfs");
-		rename_file("atmosphere/package3.ultra", "atmosphere/package3");
+    
+    // Set color to red for the text
+    gfx_con.fgcol = 0xFFFF4444;
+    gfx_printf("                                Time to update SWiTCHWAY again?");
 
-		// If the console is a patched or Mariko unit
-		if (h_cfg.t210b01 || h_cfg.rcm_patched) {
-			//rename_file("payload.bin.ultra", "payload.bin");
-			power_set_state(POWER_OFF_REBOOT);
-		}
+    usleep(2000000); // Display the text for 2s
 
-		else {
-			if (f_stat("bootloader/update.bin", NULL) == FR_OK)
-				launch_payload("bootloader/update.bin");
+    if (!h_cfg.errors) {
+        // Delete the ini file if it exists
+        if (f_stat("bootloader/ini/ultrahand_updater.bin.ini", NULL) == FR_OK) {
+            f_unlink("bootloader/ini/ultrahand_updater.bin.ini");
+        }
+        //rename_file("atmosphere/fusee-secondary.bin.ultra", "atmosphere/fusee-secondary.bin");
+        rename_file("atmosphere/stratosphere.romfs.ultra", "atmosphere/stratosphere.romfs");
+        rename_file("atmosphere/package3.ultra", "atmosphere/package3");
 
-			if (f_stat("atmosphere/reboot_payload.bin", NULL) == FR_OK)	
-				launch_payload("atmosphere/reboot_payload.bin");
+        // If the console is a patched or Mariko unit
+        if (h_cfg.t210b01 || h_cfg.rcm_patched) {
+            //rename_file("payload.bin.ultra", "payload.bin");
+            power_set_state(POWER_OFF_REBOOT);
+        }
 
-			EPRINTF("Failed to launch payload.");
-		}
-	}
+        else {
+            if (f_stat("bootloader/update.bin", NULL) == FR_OK)
+                launch_payload("bootloader/update.bin");
 
-	sd_end();
+            if (f_stat("atmosphere/reboot_payload.bin", NULL) == FR_OK)
+                launch_payload("atmosphere/reboot_payload.bin");
 
-	// Halt BPMP if we managed to get out of execution.
-	while (true)
-		bpmp_halt();
+            EPRINTF("Failed to launch payload.");
+        }
+    }
+
+    sd_end();
+
+    // Halt BPMP if we managed to get out of execution.
+    while (true)
+        bpmp_halt();
 }
+
